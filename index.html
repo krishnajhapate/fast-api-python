@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Fast Api Real time chat app</title>
+    </head>
+    <body>
+        <h1>Chat</h1>
+        <button id="connect" onclick="showForm(event)">Connect</button>
+
+        <form
+            action=""
+            onsubmit="sendMessage(event)"
+            id="form"
+            style="display: none"
+        >
+            <input type="text" id="messageText" />
+            <button>Send</button>
+        </form>
+        <ul id="messages"></ul>
+    </body>
+
+    <script>
+        var id = 1;
+        var ws = new WebSocket(`ws://localhost:8000/ws/${id}`);
+
+        function processMessage(event) {
+            console.log(event);
+            var messages = document.getElementById("messages");
+            var message = document.createElement("li");
+            var content = document.createTextNode(event.data);
+            message.appendChild(content);
+            messages.appendChild(message);
+        }
+
+        ws.onmessage = processMessage;
+        console.log(ws,'ws');
+
+        function sendMessage(event) {
+            var input = document.getElementById("messageText");
+            var message = document.createElement("li");
+            var content = document.createTextNode(input.value);
+            message.appendChild(content);
+            messages.appendChild(message);
+            ws.send(input.value);
+
+            input.value = "";
+            event.preventDefault();
+        }
+
+        function showForm(event) {
+            var button = document.getElementById("connect");
+            var form = document.getElementById("form");
+            button.style.display = "none";
+            form.style.display = "block";
+        }
+    </script>
+</html>
