@@ -1,5 +1,6 @@
 from typing import List
-from fastapi import FastAPI, WebSocket, Request, Depends, HTTPException
+from urllib import request
+from fastapi import FastAPI, WebSocket, status, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from databases import Database
 from fastapi_jwt_auth import AuthJWT
@@ -32,6 +33,28 @@ class Token(BaseModel):
 #     # subject identifier for who this token is for example id or username from database
 #     access_token = Authorize.create_access_token(subject=user.username)
 #     return {"access_token": access_token}
+
+
+@app.get('/{id}', response_model=schemas.User, tags=['User'])
+def user_info(id: int, db: Session = Depends(get_db)):
+    user = db.query(models.Users).filter(models.Users.id == id).first()
+    return user
+
+
+@app.post('/login',
+          tags=["User"],
+          status_code=201,
+          response_model=schemas.User)
+def login(request: schemas.Login, db: Session = Depends(get_db)):
+    user = db.query(
+        models.Users).filter(models.Users.email == request.email).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"Invalid Credentials")
+    if not Hash.verify(user.password, request.password):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"Incorrect password")
+    return user
 
 
 @app.post('/register', tags=["User"], status_code=201)
