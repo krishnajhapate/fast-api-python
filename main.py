@@ -7,10 +7,11 @@ from fastapi_jwt_auth import AuthJWT
 from pydantic import BaseModel
 from fastapi_jwt_auth.exceptions import AuthJWTException
 from fastapi.responses import JSONResponse
+from app import models
+from app.database import engine
 
-# database connection
 app = FastAPI()
-database = Database("sqlite:///database.db")
+models.Base.metadata.create_all(engine)
 
 
 class User(BaseModel):
@@ -21,28 +22,6 @@ class User(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
-
-
-class TokenData(BaseModel):
-    username: Optional[str] = None
-
-
-class Settings(BaseModel):
-    authjwt_secret_key: str = "secret"
-
-
-# callback to get your configuration
-@AuthJWT.load_config
-def get_config():
-    return Settings()
-
-
-# exception handler for authjwt
-# in production, you can tweak performance using orjson response
-@app.exception_handler(AuthJWTException)
-def authjwt_exception_handler(request: Request, exc: AuthJWTException):
-    return JSONResponse(status_code=exc.status_code,
-                        content={"detail": exc.message})
 
 
 # provide a method to create access tokens. The create_access_token()
@@ -77,23 +56,13 @@ def partially_protected(Authorize: AuthJWT = Depends()):
     return {"user": current_user}
 
 
-@app.on_event("startup")
-async def database_connect():
-    await database.connect()
-
-
-@app.on_event("shutdown")
-async def database_disconnect():
-    await database.disconnect()
-
-
 html = ""
 with open('index.html', 'r') as f:
     html = f.read()
 
 
-@app.get("/")
-def home():
+@app.get("/chat/{id}")
+def home(id: int):
     return HTMLResponse(html)
 
 
@@ -119,7 +88,7 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-@app.websocket("/ws/{id}")
+@app.websocket("/ws/chat/{id}")
 async def websocket_endpoint(websocket: WebSocket, id: int):
     await manager.connect(websocket)
     while True:

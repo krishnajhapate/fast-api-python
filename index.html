@@ -24,7 +24,10 @@
 
     <script>
         var id = 1;
-        var ws = new WebSocket(`ws://localhost:8000/ws/${id}`);
+        var ws = new WebSocket(
+            `ws://localhost:8000/ws${window.location.pathname}`
+        );
+        console.log(window.location.pathname)
 
         function processMessage(event) {
             console.log(event);
@@ -36,7 +39,7 @@
         }
 
         ws.onmessage = processMessage;
-        console.log(ws,'ws');
+        console.log(ws, "ws");
 
         function sendMessage(event) {
             var input = document.getElementById("messageText");
