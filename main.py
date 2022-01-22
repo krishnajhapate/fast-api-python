@@ -1,5 +1,4 @@
-import imp
-from typing import List, Optional
+from typing import List
 from fastapi import FastAPI, WebSocket, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from databases import Database
@@ -9,7 +8,9 @@ from fastapi_jwt_auth.exceptions import AuthJWTException
 from fastapi.responses import JSONResponse
 from app import models
 from app import schemas
-from app.database import engine
+from app.database import engine, get_db
+from sqlalchemy.orm import Session
+from app.hashing import Hash
 
 app = FastAPI()
 models.Base.metadata.create_all(engine)
@@ -33,9 +34,16 @@ class Token(BaseModel):
 #     return {"access_token": access_token}
 
 
-@app.post('/register', tags=["User"],status_code=201)
-def register(request: schemas.Register):
-    return request
+@app.post('/register', tags=["User"], status_code=201)
+def register(request: schemas.Register, db: Session = Depends(get_db)):
+    create_user = models.Users(name=request.name,
+                               email=request.email,
+                               password=Hash.get_password_hash(
+                                   request.password))
+    db.add(create_user)
+    db.commit()
+    db.refresh(create_user)
+    return create_user
 
 
 html = ""
@@ -46,7 +54,6 @@ with open('index.html', 'r') as f:
 @app.get("/chat/{id}", tags=['Chat'])
 def home(id: int):
     return HTMLResponse(html)
-
 
 
 class ConnectionManager:
