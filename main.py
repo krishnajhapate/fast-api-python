@@ -104,5 +104,4 @@ async def websocket_endpoint(websocket: WebSocket, id: int, token: str):
     while True:
         data = await websocket.receive_text()
         user = oauth2.verify_token(token)
-        print(user)
         await manager.broadcast(json.dumps({"user": user, "message": data}))
