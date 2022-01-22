@@ -1,18 +1,15 @@
 from typing import List
-from urllib import request
 from fastapi import FastAPI, WebSocket, status, Depends, HTTPException
 from fastapi.responses import HTMLResponse
-from databases import Database
-from fastapi_jwt_auth import AuthJWT
 from pydantic import BaseModel
-from fastapi_jwt_auth.exceptions import AuthJWTException
-from fastapi.responses import JSONResponse
-from app import models , oauth2
+from app import models, oauth2
 from app import schemas
 from app.database import engine, get_db
 from sqlalchemy.orm import Session
 from app.hashing import Hash
 from fastapi.security import OAuth2PasswordRequestForm
+import json
+
 app = FastAPI()
 models.Base.metadata.create_all(engine)
 
@@ -22,30 +19,21 @@ class Token(BaseModel):
     token_type: str
 
 
-# provide a method to create access tokens. The create_access_token()
-# function is used to actually generate the token to use authorization
-# later in endpoint protected
-# @app.post('/login')
-# def login(user: User, Authorize: AuthJWT = Depends()):
-#     if user.username != "test" or user.password != "test":
-#         raise HTTPException(status_code=401, detail="Bad username or password")
-
-#     # subject identifier for who this token is for example id or username from database
-#     access_token = Authorize.create_access_token(subject=user.username)
-#     return {"access_token": access_token}
-
-
-@app.get('/{id}', response_model=schemas.User, tags=['User'])
-def user_info(id: int, db: Session = Depends(get_db)):
-    user = db.query(models.Users).filter(models.Users.id == id).first()
+@app.get('/', tags=['User'], response_model=schemas.User)
+def user_info(db: Session = Depends(get_db),
+              current_user: schemas.User = Depends(oauth2.get_current_user)):
+    user = db.query(
+        models.Users).filter(models.Users.email == current_user).first()
     return user
 
 
-@app.post('/login',
-          tags=["User"],
-          status_code=201,
-         )
-def login(request: OAuth2PasswordRequestForm = Depends(),  db: Session = Depends(get_db)):
+@app.post(
+    '/login',
+    tags=["User"],
+    status_code=201,
+)
+def login(request: OAuth2PasswordRequestForm = Depends(),
+          db: Session = Depends(get_db)):
     user = db.query(
         models.Users).filter(models.Users.email == request.username).first()
     if not user:
@@ -55,7 +43,7 @@ def login(request: OAuth2PasswordRequestForm = Depends(),  db: Session = Depends
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f"Incorrect password")
     access_token = oauth2.create_access_token(data={"sub": user.email})
-    return {access_token:access_token,"bearer":"bearer"}
+    return {"access_token": access_token, "bearer": "bearer"}
 
 
 @app.post('/register', tags=["User"], status_code=201)
@@ -73,6 +61,14 @@ def register(request: schemas.Register, db: Session = Depends(get_db)):
 html = ""
 with open('index.html', 'r') as f:
     html = f.read()
+
+
+@app.get("/chat", tags=["chat"])
+def chat():
+    login_html = ''
+    with open('login.html', 'r') as f:
+        login_html = f.read()
+    return HTMLResponse(login_html)
 
 
 @app.get("/chat/{id}", tags=['Chat'])
@@ -98,8 +94,15 @@ manager = ConnectionManager()
 
 
 @app.websocket("/ws/chat/{id}")
-async def websocket_endpoint(websocket: WebSocket, id: int):
+async def websocket_endpoint(websocket: WebSocket, id: int, token: str):
     await manager.connect(websocket)
+    if not token:
+        # if Hash.verify
+        data = await websocket.receive_text()
+        await manager.broadcast("Not authorised")
+
     while True:
         data = await websocket.receive_text()
-        await manager.broadcast(f"Client {id}:{data}")
+        user = oauth2.verify_token(token)
+        print(user)
+        await manager.broadcast(json.dumps({"user": user, "message": data}))

@@ -8,14 +8,10 @@
     </head>
     <body>
         <h1>Chat</h1>
-        <button id="connect" onclick="showForm(event)">Connect</button>
+        <!-- <button id="connect" onclick="showForm(event)">Connect</button> -->
 
-        <form
-            action=""
-            onsubmit="sendMessage(event)"
-            id="form"
-            style="display: none"
-        >
+        <form action="" onsubmit="sendMessage(event)" id="form">
+            <!-- style="display: none" -->
             <input type="text" id="messageText" />
             <button>Send</button>
         </form>
@@ -24,16 +20,22 @@
 
     <script>
         var id = 1;
+        const search = new URLSearchParams(window.location.search);
         var ws = new WebSocket(
-            `ws://localhost:8000/ws${window.location.pathname}`
+            `ws://localhost:8000/ws${
+                window.location.pathname
+            }?token=${search.get("token")}`
         );
-        console.log(window.location.pathname)
+        console.log(window.location.pathname);
 
         function processMessage(event) {
-            console.log(event);
+            console.log(event, "reve");
             var messages = document.getElementById("messages");
             var message = document.createElement("li");
-            var content = document.createTextNode(event.data);
+            const data = JSON.parse(event.data);
+            var content = document.createTextNode(
+                data.user + " : " + data.message
+            );
             message.appendChild(content);
             messages.appendChild(message);
         }
@@ -45,8 +47,8 @@
             var input = document.getElementById("messageText");
             var message = document.createElement("li");
             var content = document.createTextNode(input.value);
-            message.appendChild(content);
-            messages.appendChild(message);
+            // message.appendChild(content);
+            // messages.appendChild(message);
             ws.send(input.value);
 
             input.value = "";

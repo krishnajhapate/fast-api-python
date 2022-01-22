@@ -1,0 +1,32 @@
+<form action="/login" method="POST" onsubmit="formSubmit(event)">
+    <label for="username"
+        >Email
+        <input type="text" name="username" id="username" />
+    </label>
+    <label for="password"
+        >Password
+        <input type="text" name="password" id="password" />
+    </label>
+    <button type="submit">Login</button>
+</form>
+
+<script>
+    const formSubmit = async (e) => {
+        e.preventDefault();
+        const formData = new FormData();
+        formData.append("username", document.getElementById("username").value);
+        formData.append("password", document.getElementById("password").value);
+        fetch("/login", {
+            method: "post",
+            body: formData,
+        })
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.access_token) {
+                    const user = prompt("Enter user to chat with");
+                    console.log(user);
+                    window.location = `/chat/${user}/?token=${data.access_token}`;
+                }
+            });
+    };
+</script>
