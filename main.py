@@ -7,12 +7,12 @@ from fastapi_jwt_auth import AuthJWT
 from pydantic import BaseModel
 from fastapi_jwt_auth.exceptions import AuthJWTException
 from fastapi.responses import JSONResponse
-from app import models
+from app import models , oauth2
 from app import schemas
 from app.database import engine, get_db
 from sqlalchemy.orm import Session
 from app.hashing import Hash
-
+from fastapi.security import OAuth2PasswordRequestForm
 app = FastAPI()
 models.Base.metadata.create_all(engine)
 
@@ -44,17 +44,18 @@ def user_info(id: int, db: Session = Depends(get_db)):
 @app.post('/login',
           tags=["User"],
           status_code=201,
-          response_model=schemas.User)
-def login(request: schemas.Login, db: Session = Depends(get_db)):
+         )
+def login(request: OAuth2PasswordRequestForm = Depends(),  db: Session = Depends(get_db)):
     user = db.query(
-        models.Users).filter(models.Users.email == request.email).first()
+        models.Users).filter(models.Users.email == request.username).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f"Invalid Credentials")
     if not Hash.verify(user.password, request.password):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f"Incorrect password")
-    return user
+    access_token = oauth2.create_access_token(data={"sub": user.email})
+    return {access_token:access_token,"bearer":"bearer"}
 
 
 @app.post('/register', tags=["User"], status_code=201)
